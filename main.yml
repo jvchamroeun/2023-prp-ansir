@@ -1,0 +1,12 @@
+---
+- hosts: service_APP
+  vars:
+    db_host: 127.0.0.1
+    db_name: backend
+    db_username: example
+    db_password: verysecure
+  tasks:
+    - import_role: 
+        name: application
+    - import_role:
+        name: database

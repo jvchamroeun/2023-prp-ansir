@@ -1,0 +1,39 @@
+---
+# tasks file for database
+- name: Templating backend_conf.j2 to backend configuration
+  become: true
+  become_user: backend
+  template:
+    src: backend_conf.j2
+    dest: /backend/backend.conf
+    owner: backend
+    mode: "0755"
+- name: Create a new database named "backend"
+  become: true
+  mysql_db:
+    name: "{{ db_name }}"
+    state: present
+- name: Create database user and password with all database privileges
+  become: true
+  mysql_user:
+    name: "{{ db_username }}"
+    password: "{{ db_password }}"
+    priv: '*.*:ALL,GRANT'
+    state: present
+- name: Setup data cmds for mysql backend database
+  become: true
+  become_user: backend
+  template:
+    src: data.j2
+    dest: /backend/data.sql
+    owner: backend
+    mode: "0755"
+- name: Import initial data for mysql backend database
+  become: true
+  become_user: backend
+  mysql_db:
+    login_user: "{{ db_username }}"
+    login_password: "{{ db_password }}"
+    name: "{{ db_name }}"
+    state: import
+    target: /backend/data.sql

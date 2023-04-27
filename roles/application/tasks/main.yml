@@ -1,0 +1,97 @@
+---
+# tasks file for application
+- name: Installing required packages for application
+  become: true
+  apt:
+    name:
+      - nginx
+      - unzip
+      - acl
+      - python3-pip
+      - mysql-server
+      - libmysqlclient-dev
+      - python3-dev
+      - python3-mysqldb
+    update_cache: yes
+- name: Add the user 'backend'
+  become: true
+  user:
+    name: backend
+- name: Download application from git repo
+  get_url:
+    url: https://github.com/jvchamroeun/2023-prp-bbapp/archive/refs/heads/main.zip
+    dest: /tmp/source.zip
+- name: Create code directory for source code archive
+  file:
+    path: /tmp/code
+    state: directory
+- name: Extract source archive for source code files
+  unarchive:
+    src: /tmp/source.zip
+    dest: /tmp/code
+    remote_src: yes
+- name: Create a directory for frontend files
+  become: true
+  file:
+    path: /frontend
+    state: directory
+    owner: "{{ ansible_ssh_user }}"
+- name: Create a directory for backend files
+  become: true
+  file:
+    path: /backend
+    state: directory
+    owner: backend
+- name: Set up frontend file
+  copy:
+    src: /tmp/code/2023-prp-bbapp-main/frontend/index.html
+    dest: /frontend/index.html
+    remote_src: yes
+- name: Set up backend files
+  become: true
+  become_user: backend
+  copy:
+    src: /tmp/code/2023-prp-bbapp-main/backend/
+    dest: /backend/
+    remote_src: yes
+- name: Copy modified nginx configuration file to instance
+  become: true
+  template:
+    src: nginx.j2
+    dest: /etc/nginx/sites-available/default
+    owner: root
+    mode: "0755"
+- name: Copy modified nginx configuration file to instance
+  become: true
+  copy:
+    src: nginx
+    dest: /etc/nginx/sites-available/default
+- name: Restart nginx.service
+  become: true
+  systemd:
+    name: nginx
+    state: restarted
+- name: Pip install backend requirements
+  become: true
+  become_user: backend
+  pip:
+    requirements: /backend/requirements.txt
+    extra_args: --user
+    executable: pip3
+- name: Copy backend service file into systemd directory
+  become: true
+  template:
+    src: service.j2
+    dest: /etc/systemd/system/backend.service
+    owner: root
+    mode: "0755"
+- name: Daemon-reload to detect backend.service
+  become: true
+  systemd:
+    daemon_reload: true
+- name: start and enable backend.service
+  become: true
+  systemd:
+    name: backend
+    state: started
+    enabled: true
